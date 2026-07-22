@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configuração correta do Mercado Pago (nova versão)
 const client = new MercadoPagoConfig({ 
     accessToken: process.env.MP_ACCESS_TOKEN 
 });
@@ -27,13 +26,26 @@ async function connectToWhatsApp() {
             console.log('✅ BOT CONECTADO COM SUCESSO!');
         }
 
-        if (!sock.authState?.creds?.registered) {
-            try {
-                const code = await sock.requestPairingCode('5511999999999'); // ← TROQUE PELO SEU NÚMERO
-                console.log('\n🔑 CÓDIGO DE PAREAMENTO: ' + code);
-            } catch (e) {
-                console.log('Erro ao gerar código:', e);
+        if (connection === 'close') {
+            const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) {
+                console.log('🔄 Reconectando em 5 segundos...');
+                setTimeout(connectToWhatsApp, 5000);
             }
+        }
+
+        // Gera o código de pareamento
+        if (!sock.authState?.creds?.registered) {
+            setTimeout(async () => {
+                try {
+                    const code = await sock.requestPairingCode('5544999943206');
+                    console.log('\n🔥 CÓDIGO DE PAREAMENTO:');
+                    console.log(code);
+                    console.log('\nAbra o WhatsApp → Configurações → Dispositivos Vinculados → Vincular com código');
+                } catch (err) {
+                    console.log('❌ Ainda não conseguiu gerar o código:', err.message);
+                }
+            }, 10000); // 10 segundos
         }
     });
 
@@ -45,34 +57,20 @@ async function connectToWhatsApp() {
 
             if (texto === 'ping') {
                 await sock.sendMessage(from, { text: '🏓 Pong! Bot online!' });
-            } 
-            else if (texto === 'pagar') {
+            } else if (texto === 'pagar') {
                 try {
                     const preference = new Preference(client);
                     const response = await preference.create({
                         body: {
-                            items: [
-                                {
-                                    title: 'Produto Teste Bot',
-                                    quantity: 1,
-                                    unit_price: 29.90
-                                }
-                            ]
+                            items: [{ title: 'Teste Bot WhatsApp', quantity: 1, unit_price: 29.90 }]
                         }
                     });
-
-                    await sock.sendMessage(from, { 
-                        text: `💰 Link de pagamento:\n${response.init_point}` 
-                    });
+                    await sock.sendMessage(from, { text: `💰 Link para pagar:\n${response.init_point}` });
                 } catch (e) {
-                    console.error(e);
                     await sock.sendMessage(from, { text: '❌ Erro ao gerar pagamento.' });
                 }
-            } 
-            else {
-                await sock.sendMessage(from, { 
-                    text: '👋 Comandos disponíveis:\n• ping\n• pagar' 
-                });
+            } else {
+                await sock.sendMessage(from, { text: 'Comandos disponíveis:\n• ping\n• pagar' });
             }
         }
     });

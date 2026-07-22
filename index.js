@@ -15,6 +15,7 @@ async function connectToWhatsApp() {
     const sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
+        logger: undefined, // menos logs
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -29,32 +30,33 @@ async function connectToWhatsApp() {
         if (connection === 'close') {
             let shouldReconnect = true;
             if (lastDisconnect?.error) {
-                const boomError = lastDisconnect.error;
-                if (boomError?.output?.statusCode === DisconnectReason.loggedOut) {
+                const boom = lastDisconnect.error;
+                if (boom?.output?.statusCode === DisconnectReason.loggedOut) {
                     shouldReconnect = false;
                 }
             }
             if (shouldReconnect) {
-                console.log('🔄 Reconectando em 5 segundos...');
-                setTimeout(connectToWhatsApp, 5000);
+                console.log('🔄 Reconectando em 8 segundos...');
+                setTimeout(connectToWhatsApp, 8000);
             }
         }
 
-        // Gera código de pareamento
+        // Gera código de pareamento com mais tempo
         if (!sock.authState?.creds?.registered) {
             setTimeout(async () => {
                 try {
                     const code = await sock.requestPairingCode('5544999943206');
                     console.log('\n🔥 CÓDIGO DE PAREAMENTO:');
                     console.log(code);
-                    console.log('\nUse no WhatsApp → Dispositivos Vinculados → Vincular com código');
+                    console.log('→ Use este código AGORA no WhatsApp');
                 } catch (err) {
                     console.log('❌ Erro ao gerar código:', err.message);
                 }
-            }, 10000);
+            }, 12000); // 12 segundos
         }
     });
 
+    // Respostas do bot
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.key.fromMe && msg.message?.conversation) {
@@ -62,21 +64,21 @@ async function connectToWhatsApp() {
             const from = msg.key.remoteJid;
 
             if (texto === 'ping') {
-                await sock.sendMessage(from, { text: '🏓 Pong! Bot online!' });
+                await sock.sendMessage(from, { text: '🏓 Pong! Bot funcionando!' });
             } else if (texto === 'pagar') {
                 try {
                     const preference = new Preference(client);
                     const response = await preference.create({
                         body: {
-                            items: [{ title: 'Teste Bot WhatsApp', quantity: 1, unit_price: 29.90 }]
+                            items: [{ title: 'Teste Bot', quantity: 1, unit_price: 29.90 }]
                         }
                     });
-                    await sock.sendMessage(from, { text: `💰 Link para pagar:\n${response.init_point}` });
+                    await sock.sendMessage(from, { text: `💰 Link de pagamento:\n${response.init_point}` });
                 } catch (e) {
-                    await sock.sendMessage(from, { text: '❌ Erro ao gerar pagamento.' });
+                    await sock.sendMessage(from, { text: '❌ Erro ao gerar link de pagamento.' });
                 }
             } else {
-                await sock.sendMessage(from, { text: 'Comandos: *ping* ou *pagar*' });
+                await sock.sendMessage(from, { text: 'Comandos:\n• ping\n• pagar' });
             }
         }
     });

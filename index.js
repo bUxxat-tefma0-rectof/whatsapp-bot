@@ -1,11 +1,14 @@
 import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import MercadoPago from 'mercadopago';
+import { MercadoPagoConfig, Preference } from 'mercadopago';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const mp = new MercadoPago({ accessToken: process.env.MP_ACCESS_TOKEN });
+// Configuração correta do Mercado Pago (nova versão)
+const client = new MercadoPagoConfig({ 
+    accessToken: process.env.MP_ACCESS_TOKEN 
+});
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -25,8 +28,12 @@ async function connectToWhatsApp() {
         }
 
         if (!sock.authState?.creds?.registered) {
-            const code = await sock.requestPairingCode('5511999999999'); // TROQUE PELO SEU NÚMERO
-            console.log('\n🔑 CÓDIGO DE PAREAMENTO: ' + code);
+            try {
+                const code = await sock.requestPairingCode('5511999999999'); // ← TROQUE PELO SEU NÚMERO
+                console.log('\n🔑 CÓDIGO DE PAREAMENTO: ' + code);
+            } catch (e) {
+                console.log('Erro ao gerar código:', e);
+            }
         }
     });
 
@@ -37,14 +44,35 @@ async function connectToWhatsApp() {
             const from = msg.key.remoteJid;
 
             if (texto === 'ping') {
-                await sock.sendMessage(from, { text: '🏓 Pong!' });
-            } else if (texto === 'pagar') {
-                const preference = await mp.preferences.create({
-                    items: [{ title: 'Teste Bot', quantity: 1, unit_price: 29.90 }]
+                await sock.sendMessage(from, { text: '🏓 Pong! Bot online!' });
+            } 
+            else if (texto === 'pagar') {
+                try {
+                    const preference = new Preference(client);
+                    const response = await preference.create({
+                        body: {
+                            items: [
+                                {
+                                    title: 'Produto Teste Bot',
+                                    quantity: 1,
+                                    unit_price: 29.90
+                                }
+                            ]
+                        }
+                    });
+
+                    await sock.sendMessage(from, { 
+                        text: `💰 Link de pagamento:\n${response.init_point}` 
+                    });
+                } catch (e) {
+                    console.error(e);
+                    await sock.sendMessage(from, { text: '❌ Erro ao gerar pagamento.' });
+                }
+            } 
+            else {
+                await sock.sendMessage(from, { 
+                    text: '👋 Comandos disponíveis:\n• ping\n• pagar' 
                 });
-                await sock.sendMessage(from, { text: `💰 Pague aqui: ${preference.body.init_point}` });
-            } else {
-                await sock.sendMessage(from, { text: 'Comandos: ping ou pagar' });
             }
         }
     });

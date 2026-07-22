@@ -27,25 +27,31 @@ async function connectToWhatsApp() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+            let shouldReconnect = true;
+            if (lastDisconnect?.error) {
+                const boomError = lastDisconnect.error;
+                if (boomError?.output?.statusCode === DisconnectReason.loggedOut) {
+                    shouldReconnect = false;
+                }
+            }
             if (shouldReconnect) {
                 console.log('🔄 Reconectando em 5 segundos...');
                 setTimeout(connectToWhatsApp, 5000);
             }
         }
 
-        // Gera o código de pareamento
+        // Gera código de pareamento
         if (!sock.authState?.creds?.registered) {
             setTimeout(async () => {
                 try {
                     const code = await sock.requestPairingCode('5544999943206');
                     console.log('\n🔥 CÓDIGO DE PAREAMENTO:');
                     console.log(code);
-                    console.log('\nAbra o WhatsApp → Configurações → Dispositivos Vinculados → Vincular com código');
+                    console.log('\nUse no WhatsApp → Dispositivos Vinculados → Vincular com código');
                 } catch (err) {
-                    console.log('❌ Ainda não conseguiu gerar o código:', err.message);
+                    console.log('❌ Erro ao gerar código:', err.message);
                 }
-            }, 10000); // 10 segundos
+            }, 10000);
         }
     });
 
@@ -70,7 +76,7 @@ async function connectToWhatsApp() {
                     await sock.sendMessage(from, { text: '❌ Erro ao gerar pagamento.' });
                 }
             } else {
-                await sock.sendMessage(from, { text: 'Comandos disponíveis:\n• ping\n• pagar' });
+                await sock.sendMessage(from, { text: 'Comandos: *ping* ou *pagar*' });
             }
         }
     });

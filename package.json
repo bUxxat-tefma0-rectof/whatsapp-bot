@@ -1,18 +1,15 @@
 {
   "name": "whatsapp-bot",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "latest",
     "dotenv": "^16.4.5",
     "mercadopago": "^2.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
   }
 }
